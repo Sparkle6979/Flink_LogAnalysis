@@ -1,4 +1,4 @@
-package com.jmx.analysis;
+package com.jmx.analysis.tools;
 
 import com.jmx.bean.AccessLogRecord;
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -11,6 +11,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
 
 /**
  * @author sparkle6979l
@@ -81,5 +82,11 @@ public class AnalysisTools {
             e.printStackTrace();
         }
         return calendar.getTimeInMillis();
+    }
+
+    public static String Long2timestamp(Long time){
+        Date date = new Date(time);
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        return sdf.format(date);
     }
 }

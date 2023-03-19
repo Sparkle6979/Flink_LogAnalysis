@@ -1,13 +1,12 @@
 package com.jmx.analysis.map;
 
 import com.jmx.analysis.tools.AnalysisTools;
-import com.jmx.bean.Fornum;
+import com.jmx.bean.Article;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
-
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -19,18 +18,18 @@ import java.util.Properties;
 /**
  * @author sparkle6979l
  * @version 1.0
- * @data 2023/3/18 16:56
+ * @data 2023/3/19 15:02
  */
-public class FornumRichFlatMapFunction extends RichFlatMapFunction<Tuple4<String, String, Integer, Integer>, Tuple3<Integer,String,Long>> {
+public class AticleRichFlatMapFunction extends RichFlatMapFunction<Tuple4<String, String, Integer, Integer>, Tuple3<Integer,String,Long>> {
     private PreparedStatement ps=null;
     private Connection connection=null;
     private String driver = "com.mysql.jdbc.Driver";
     private String tablename;
     private Properties sqlproperty;
 
-    HashMap<Integer, Fornum> fornumInfo = new HashMap<>();
+    HashMap<Integer, Article> articleInfo = new HashMap<>();
 
-    public FornumRichFlatMapFunction(String tablename,Properties sqlproperty){
+    public AticleRichFlatMapFunction(String tablename,Properties sqlproperty){
         this.tablename = tablename;
         this.sqlproperty = sqlproperty;
     }
@@ -40,7 +39,7 @@ public class FornumRichFlatMapFunction extends RichFlatMapFunction<Tuple4<String
         super.open(parameters);
 
         connection = getConnection();
-        String sqlsent = "select fid,name from " + this.tablename;
+        String sqlsent = "select tid,subject from " + this.tablename;
 
         ps = connection.prepareStatement(sqlsent);
 
@@ -48,23 +47,24 @@ public class FornumRichFlatMapFunction extends RichFlatMapFunction<Tuple4<String
 
         ResultSet resultSet = ps.executeQuery();
         while (resultSet.next()){
-            Fornum fornum = new Fornum(
-                    resultSet.getInt("fid"),
-                    resultSet.getString("name"));
+            if(resultSet.getString("subject").equals(""))
+                continue;
+            Article article = new Article(
+                    resultSet.getInt("tid"),
+                    resultSet.getString("subject"));
 
-            fornumInfo.put(fornum.fid,fornum);
+            articleInfo.put(article.aid,article);
         }
 
-//        System.out.println(fornumInfo);
     }
 
     @Override
     public void flatMap(Tuple4<String, String, Integer, Integer> accessLogRecord, Collector<Tuple3<Integer,String,Long>> collector) throws Exception {
-        if (!fornumInfo.containsKey(accessLogRecord.f2))
+        if (!articleInfo.containsKey(accessLogRecord.f3))
             return ;
-        Fornum fornum = fornumInfo.get(accessLogRecord.f2);
+        Article article = articleInfo.get(accessLogRecord.f3);
         Long datetime = AnalysisTools.Timestamp2long(accessLogRecord.f1);
-        collector.collect(new Tuple3<Integer,String,Long>(fornum.fid,fornum.name,datetime));
+        collector.collect(new Tuple3<Integer,String,Long>(article.aid,article.name,datetime));
     }
 
     // 配置mysql
@@ -86,7 +86,4 @@ public class FornumRichFlatMapFunction extends RichFlatMapFunction<Tuple4<String
         connection.close();
         ps.close();
     }
-
-
-
 }

@@ -1,4 +1,4 @@
-package com.jmx.analysis;
+package com.jmx.analysis.tools;
 
 import com.jmx.bean.AccessLogRecord;
 import org.apache.flink.api.java.tuple.Tuple2;

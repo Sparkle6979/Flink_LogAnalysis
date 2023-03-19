@@ -1,5 +1,6 @@
 package com.jmx.analysis;
 
+import com.jmx.analysis.tools.LogParse;
 import com.jmx.bean.AccessLogRecord;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;

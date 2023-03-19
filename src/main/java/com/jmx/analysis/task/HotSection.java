@@ -1,55 +1,31 @@
-package com.jmx.analysis;
+package com.jmx.analysis.task;
 
-import com.jmx.analysis.flinkjdbc.FornumSourceFromMysql;
+import com.jmx.analysis.tools.AnalysisTools;
+import com.jmx.analysis.LogAnalysis;
 import com.jmx.analysis.map.FornumRichFlatMapFunction;
 import com.jmx.bean.AccessLogRecord;
-import com.jmx.bean.Fornum;
-import com.mysql.cj.jdbc.MysqlDataSource;
 import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.functions.AggregateFunction;
-import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.io.FileInputFormat;
-import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
 import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
 import org.apache.flink.connector.jdbc.JdbcSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.api.windowing.windows.Window;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
-import org.apache.flink.table.planner.expressions.In;
 import org.apache.flink.util.Collector;
-import org.apache.kafka.common.protocol.types.Field;
 
-import java.io.IOException;
-import java.lang.reflect.AccessibleObject;
-import java.sql.Timestamp;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.Properties;
-
-import org.apache.flink.connector.jdbc.JdbcInputFormat;
 
 /**
  * @author sparkle6979l
  * @version 1.0
  * @data 2023/3/17 16:23
  */
-public class DataStreamLogAnalysis {
+public class HotSection {
 
     public static void main(String[] args) throws Exception {
 
@@ -79,21 +55,14 @@ public class DataStreamLogAnalysis {
 
 //        DataStream<String> logSource = env.addSource(new FlinkKafkaConsumer<String>("user_access_logs", new SimpleStringSchema(), props));
 
-
         DataStream<String> logSource = env.readTextFile("/Users/sparkle6979l/Mavens/FlinkStu/flink-tes/lampp/logs/access_log");
 
-//
-//        DataStream<Fornum> fornumSource = env.addSource(new FornumSourceFromMysql("pre_forum_forum",sqlprops));
-//
+
         DataStream<AccessLogRecord> AvaliableLog = AnalysisTools.getAvailableAccessLog(logSource);
-
-
         // 获取[clienIP,accessDate,sectionId,articleId]
         DataStream<Tuple4<String, String, Integer, Integer>> fieldFromLog = LogAnalysis.getFieldFromLog(AvaliableLog);
 
-
-//        SingleOutputStreamOperator<Tuple3<Integer, String, Integer>> pre_forum_forum =
-        fieldFromLog
+        SingleOutputStreamOperator<Tuple5<Integer, String, Integer, Long, Long>> pre_forum_forum = fieldFromLog
                 .flatMap(new FornumRichFlatMapFunction("pre_forum_forum", sqlprops))
                 .assignTimestampsAndWatermarks(WatermarkStrategy.<Tuple3<Integer, String, Long>>forMonotonousTimestamps()
                         .withTimestampAssigner(new SerializableTimestampAssigner<Tuple3<Integer, String, Long>>() {
@@ -105,34 +74,28 @@ public class DataStreamLogAnalysis {
 
                 .keyBy(data -> data.f0)
                 .window(TumblingEventTimeWindows.of(Time.days(3)))
-                .process(new CntSectionID())
-                .print();
+                .process(new CntSectionID());
 
-//                .map(new MapFunction<Tuple2<Integer, String>, Tuple3<Integer, String, Integer>>() {
-//
-//                    @Override
-//                    public Tuple3<Integer, String, Integer> map(Tuple2<Integer, String> integerStringTuple2) throws Exception {
-//                        return new Tuple3<Integer, String, Integer>(integerStringTuple2.f0, integerStringTuple2.f1, 1);
-//                    }
-//                })
-//                .keyBy(data -> data.f0)
-//                .sum(2);
-//
-//        pre_forum_forum.addSink(JdbcSink.sink(
-//                "INSERT INTO hot_section(section_id,name,section_pv,statistic_time) VALUES(?,?,?,?)",
-//                ((preparedStatement, integerStringIntegerTuple3) -> {
-//                    preparedStatement.setInt(1,integerStringIntegerTuple3.f0);
-//                    preparedStatement.setString(2,integerStringIntegerTuple3.f1);
-//                    preparedStatement.setInt(3,integerStringIntegerTuple3.f2);
-//                    preparedStatement.setTimestamp(4,new Timestamp(System.currentTimeMillis()));
-//                }),
-//                new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
-//                        .withUrl(sqlprops.getProperty("url"))
-//                        .withDriverName("com.mysql.jdbc.Driver")
-//                        .withUsername(sqlprops.getProperty("username"))
-//                        .withPassword(sqlprops.getProperty("password"))
-//                        .build()
-//        ));
+
+
+
+        pre_forum_forum.addSink(JdbcSink.sink(
+                "INSERT INTO hot_section(section_id,name,section_pv,time_beg,time_end) VALUES(?,?,?,?,?)",
+                ((preparedStatement, integerStringIntegerTuple3) -> {
+                    preparedStatement.setInt(1,integerStringIntegerTuple3.f0);
+                    preparedStatement.setString(2,integerStringIntegerTuple3.f1);
+                    preparedStatement.setInt(3,integerStringIntegerTuple3.f2);
+                    preparedStatement.setString(4,AnalysisTools.Long2timestamp(integerStringIntegerTuple3.f3));
+                    preparedStatement.setString(5,AnalysisTools.Long2timestamp(integerStringIntegerTuple3.f4));
+
+                }),
+                new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
+                        .withUrl(sqlprops.getProperty("url"))
+                        .withDriverName("com.mysql.jdbc.Driver")
+                        .withUsername(sqlprops.getProperty("username"))
+                        .withPassword(sqlprops.getProperty("password"))
+                        .build()
+        ));
 //
 //
         env.execute();

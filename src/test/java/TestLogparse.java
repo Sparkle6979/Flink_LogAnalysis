@@ -1,4 +1,4 @@
-import com.jmx.analysis.LogParse;
+import com.jmx.analysis.tools.LogParse;
 import com.jmx.bean.AccessLogRecord;
 import org.apache.flink.api.java.tuple.Tuple2;
 

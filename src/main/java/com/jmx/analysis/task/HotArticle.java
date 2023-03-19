@@ -1,8 +1,8 @@
 package com.jmx.analysis.task;
 
 import com.jmx.analysis.tools.AnalysisTools;
-import com.jmx.analysis.LogAnalysis;
 import com.jmx.analysis.map.AticleRichFlatMapFunction;
+import com.jmx.analysis.tools.Property;
 import com.jmx.bean.AccessLogRecord;
 import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -36,25 +36,10 @@ public class HotArticle {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
-
-        // kafka参数配置
-        Properties props = new Properties();
-        // kafka broker地址
-        props.put("bootstrap.servers", "172.16.240.10:9092");
-        // 消费者组
-        props.put("group.id", "log_consumer");
-        // kafka 消息的key序列化器
-        props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-        // kafka 消息的value序列化器
-        props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-        props.put("auto.offset.reset", "earliest");
-
-
-        Properties sqlprops = new Properties();
-        sqlprops.put("url", "jdbc:mysql://localhost:3306/ultrax");
-        sqlprops.put("username", "root");
-        sqlprops.put("password", "123456");
-
+        // kafka 配置文件加载
+        Properties props = Property.getKafkaProperties("log_consumer");
+        // Mysql 配置文件加载
+        Properties sqlprops = Property.getMySQLProperties();
 
         DataStream<String> logSource = env.addSource(new FlinkKafkaConsumer<String>("user_access_logs", new SimpleStringSchema(), props));
 
@@ -63,7 +48,7 @@ public class HotArticle {
 
         DataStream<AccessLogRecord> AvaliableLog = AnalysisTools.getAvailableAccessLog(logSource);
         // 获取[clienIP,accessDate,sectionId,articleId]
-        DataStream<Tuple4<String, String, Integer, Integer>> fieldFromLog = LogAnalysis.getFieldFromLog(AvaliableLog);
+        DataStream<Tuple4<String, String, Integer, Integer>> fieldFromLog = AnalysisTools.getFieldFromLog(AvaliableLog);
 
 
         SingleOutputStreamOperator<Tuple5<Integer, String, Integer, Long, Long>> pre_forum_post = fieldFromLog

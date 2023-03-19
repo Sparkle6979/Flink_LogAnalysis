@@ -1,0 +1,47 @@
+version: '3'
+services:
+  xampp:
+    container_name: xampp
+    image: tomsik68/xampp
+    ports:
+      - "41061:22"
+      - "41062:80"
+    volumes:
+      - ./discuz/upload:/opt/lampp/htdocs
+      - ./lampp/logs:/opt/lampp/logs
+    networks:
+      mynetwork:
+        ipv4_address: 172.16.238.10
+
+
+  mariadb:
+    container_name: mariadb
+    image: mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: 123456
+    ports:
+      - "3306:3306"
+      - "3060:3060"
+    networks:
+      mynetwork:
+        ipv4_address: 172.16.238.11
+
+
+networks:
+  mynetwork:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.16.238.0/24
+          gateway: 172.16.238.1
+
+  
+    
+
+
+
+
+
+
+
+

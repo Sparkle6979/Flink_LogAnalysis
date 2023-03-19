@@ -8,6 +8,10 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+
 /**
  * @author sparkle6979l
  * @version 1.0
@@ -65,5 +69,17 @@ public class AnalysisTools {
                     }
         });
         return result;
+    }
+
+
+
+    public static Long Timestamp2long(String time){
+        Calendar calendar = Calendar.getInstance();
+        try {
+            calendar.setTime(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(time));
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return calendar.getTimeInMillis();
     }
 }

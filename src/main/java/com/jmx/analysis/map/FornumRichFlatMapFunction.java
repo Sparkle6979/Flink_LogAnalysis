@@ -1,10 +1,12 @@
 package com.jmx.analysis.map;
 
+import com.jmx.analysis.AnalysisTools;
 import com.jmx.bean.AccessLogRecord;
 import com.jmx.bean.Fornum;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.planner.expressions.In;
@@ -16,6 +18,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Properties;
 
@@ -24,7 +27,7 @@ import java.util.Properties;
  * @version 1.0
  * @data 2023/3/18 16:56
  */
-public class FornumRichFlatMapFunction extends RichFlatMapFunction<Tuple4<String, String, Integer, Integer>, Tuple2<Integer,String>> {
+public class FornumRichFlatMapFunction extends RichFlatMapFunction<Tuple4<String, String, Integer, Integer>, Tuple3<Integer,String,Long>> {
     private PreparedStatement ps=null;
     private Connection connection=null;
     private String driver = "com.mysql.jdbc.Driver";
@@ -62,12 +65,12 @@ public class FornumRichFlatMapFunction extends RichFlatMapFunction<Tuple4<String
     }
 
     @Override
-    public void flatMap(Tuple4<String, String, Integer, Integer> accessLogRecord, Collector<Tuple2<Integer, String>> collector) throws Exception {
+    public void flatMap(Tuple4<String, String, Integer, Integer> accessLogRecord, Collector<Tuple3<Integer,String,Long>> collector) throws Exception {
         if (!fornumInfo.containsKey(accessLogRecord.f2))
             return ;
         Fornum fornum = fornumInfo.get(accessLogRecord.f2);
-//        System.out.println(fornum.name + fornum.fid);
-        collector.collect(new Tuple2<Integer,String>(fornum.fid,fornum.name));
+        Long datetime = AnalysisTools.Timestamp2long(accessLogRecord.f1);
+        collector.collect(new Tuple3<Integer,String,Long>(fornum.fid,fornum.name,datetime));
     }
 
     // 配置mysql
@@ -89,4 +92,7 @@ public class FornumRichFlatMapFunction extends RichFlatMapFunction<Tuple4<String
         connection.close();
         ps.close();
     }
+
+
+
 }

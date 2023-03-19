@@ -5,16 +5,16 @@ import com.jmx.analysis.map.FornumRichFlatMapFunction;
 import com.jmx.bean.AccessLogRecord;
 import com.jmx.bean.Fornum;
 import com.mysql.cj.jdbc.MysqlDataSource;
+import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
 import org.apache.flink.connector.jdbc.JdbcSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -24,6 +24,11 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.table.planner.expressions.In;
 import org.apache.flink.util.Collector;
@@ -32,6 +37,9 @@ import org.apache.kafka.common.protocol.types.Field;
 import java.io.IOException;
 import java.lang.reflect.AccessibleObject;
 import java.sql.Timestamp;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Properties;
 
 import org.apache.flink.connector.jdbc.JdbcInputFormat;
@@ -64,16 +72,16 @@ public class DataStreamLogAnalysis {
 
 
         Properties sqlprops = new Properties();
-        sqlprops.put("url","jdbc:mysql://localhost:3306/ultrax");
-        sqlprops.put("username","root");
-        sqlprops.put("password","123456");
+        sqlprops.put("url", "jdbc:mysql://localhost:3306/ultrax");
+        sqlprops.put("username", "root");
+        sqlprops.put("password", "123456");
 
 
 //        DataStream<String> logSource = env.addSource(new FlinkKafkaConsumer<String>("user_access_logs", new SimpleStringSchema(), props));
 
 
         DataStream<String> logSource = env.readTextFile("/Users/sparkle6979l/Mavens/FlinkStu/flink-tes/lampp/logs/access_log");
-        logSource.print();
+
 //
 //        DataStream<Fornum> fornumSource = env.addSource(new FornumSourceFromMysql("pre_forum_forum",sqlprops));
 //
@@ -82,16 +90,24 @@ public class DataStreamLogAnalysis {
 
         // 获取[clienIP,accessDate,sectionId,articleId]
         DataStream<Tuple4<String, String, Integer, Integer>> fieldFromLog = LogAnalysis.getFieldFromLog(AvaliableLog);
-//        fieldFromLog.print();
-
-
-
-
 
 
 //        SingleOutputStreamOperator<Tuple3<Integer, String, Integer>> pre_forum_forum =
-//        SingleOutputStreamOperator<Tuple3<Integer, String, Integer>> pre_forum_forum = fieldFromLog
-//                .flatMap(new FornumRichFlatMapFunction("pre_forum_forum", sqlprops))
+        fieldFromLog
+                .flatMap(new FornumRichFlatMapFunction("pre_forum_forum", sqlprops))
+                .assignTimestampsAndWatermarks(WatermarkStrategy.<Tuple3<Integer, String, Long>>forMonotonousTimestamps()
+                        .withTimestampAssigner(new SerializableTimestampAssigner<Tuple3<Integer, String, Long>>() {
+                            @Override
+                            public long extractTimestamp(Tuple3<Integer, String, Long> integerStringStringTuple3, long l) {
+                                return integerStringStringTuple3.f2;
+                            }
+                        }))
+
+                .keyBy(data -> data.f0)
+                .window(TumblingEventTimeWindows.of(Time.days(3)))
+                .process(new CntSectionID())
+                .print();
+
 //                .map(new MapFunction<Tuple2<Integer, String>, Tuple3<Integer, String, Integer>>() {
 //
 //                    @Override
@@ -119,13 +135,28 @@ public class DataStreamLogAnalysis {
 //        ));
 //
 //
-//        env.execute();
+        env.execute();
 
     }
 
-
-
-
+    public static class CntSectionID extends ProcessWindowFunction<Tuple3<Integer, String, Long>, Tuple5<Integer, String, Integer, Long, Long>, Integer, TimeWindow> {
+        @Override
+        public void process(Integer integer, ProcessWindowFunction<Tuple3<Integer, String, Long>, Tuple5<Integer, String, Integer, Long, Long>, Integer, TimeWindow>.Context context, Iterable<Tuple3<Integer, String, Long>> iterable, Collector<Tuple5<Integer, String, Integer, Long, Long>> collector) throws Exception {
+            int cnt = 1;
+            String name = "";
+            for (Tuple3<Integer, String, Long> tmp : iterable) {
+                name = tmp.f1;
+                ++cnt;
+            }
+            collector.collect(new Tuple5<>(integer, name, cnt, context.window().getStart(), context.window().getEnd()));
+        }
+    }
 
 
 }
+
+
+
+
+
+

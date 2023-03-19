@@ -49,16 +49,16 @@ public class ClientAccess {
         sqlprops.put("username", "root");
         sqlprops.put("password", "123456");
 
-
+        // 获取 log 的 DataSource
 //        DataStream<String> logSource = env.addSource(new FlinkKafkaConsumer<String>("user_access_logs", new SimpleStringSchema(), props));
 
         DataStream<String> logSource = env.readTextFile("/Users/sparkle6979l/Mavens/FlinkStu/flink-tes/lampp/logs/access_log");
 
-
+        // log message的筛选与处理
         DataStream<AccessLogRecord> AvaliableLog = AnalysisTools.getAvailableAccessLog(logSource);
         // 获取[clienIP,accessDate,sectionId,articleId]
-//        DataStream<Tuple4<String, String, Integer, Integer>> fieldFromLog =
         SingleOutputStreamOperator<Tuple4<String, Integer, Long, Long>> process = LogAnalysis.getFieldFromLog(AvaliableLog)
+                // 水位线生成
                 .assignTimestampsAndWatermarks(WatermarkStrategy.<Tuple4<String, String, Integer, Integer>>forMonotonousTimestamps().withTimestampAssigner(
                         new SerializableTimestampAssigner<Tuple4<String, String, Integer, Integer>>() {
                             @Override
@@ -67,6 +67,7 @@ public class ClientAccess {
                             }
                         }
                 ))
+                // 按ClientIP分组
                 .keyBy(data -> data.f0)
                 .window(TumblingEventTimeWindows.of(Time.days(1)))
                 .process(new AccessCnt());

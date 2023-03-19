@@ -22,12 +22,14 @@ import java.util.regex.Pattern;
 public class LogParse implements Serializable {
 
     //构建正则表达式
-    private String regex = "(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}) (\\S+) (\\S+) (\\[.+?\\]) (\\\"(.*?)\\\") (\\d{3}) (\\S+) (\\\"(.*?)\\\") (\\\"(.*?)\\\")";
+    private String regex = "(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}) (\\S+) (\\S+) (\\[.+?\\]) (\\\"(.*?)\\\") (\\d{3}) (\\S+)";
+    // 得到一个Pattern 对象
     private Pattern p = Pattern.compile(regex);
 
     /*
      *构造访问日志的封装类对象
      * */
+
     public AccessLogRecord buildAccessLogRecord(Matcher matcher) {
         AccessLogRecord record = new AccessLogRecord();
         record.setClientIpAddress(matcher.group(1));
@@ -35,10 +37,10 @@ public class LogParse implements Serializable {
         record.setRemoteUser(matcher.group(3));
         record.setDateTime(matcher.group(4));
         record.setRequest(matcher.group(5));
-        record.setHttpStatusCode(matcher.group(6));
-        record.setBytesSent(matcher.group(7));
-        record.setReferer(matcher.group(8));
-        record.setUserAgent(matcher.group(9));
+        record.setHttpStatusCode(matcher.group(7));
+        record.setBytesSent(matcher.group(8));
+//        record.setReferer(matcher.group(8));
+//        record.setUserAgent(matcher.group(9));
         return record;
 
     }
@@ -48,6 +50,7 @@ public class LogParse implements Serializable {
      * @return 解析日志记录，将解析的日志封装成一个AccessLogRecord类
      */
     public AccessLogRecord parseRecord(String record) {
+        // p是一个pattern
         Matcher matcher = p.matcher(record);
         if (matcher.find()) {
             return buildAccessLogRecord(matcher);

@@ -13,6 +13,10 @@ import lombok.Data;
 /**
  * 原始日志封装类
  */
+
+
+//172.16.238.1 - - [16/Mar/2023:03:20:07 +0000] "GET /misc.php?mod=seccode&action=update&idhash=cSnPIp0Z&0.4608340496442245&modid=undefined HTTP/1.1" 200 1482
+
 @Data
 public class AccessLogRecord {
     public String clientIpAddress; // 客户端ip地址
@@ -22,6 +26,6 @@ public class AccessLogRecord {
     public String request; // url请求,如：`GET /foo ...`
     public String httpStatusCode; // 状态码，如：200; 404.
     public String bytesSent; // 传输的字节数，有可能是 `-`
-    public String referer; // 参考链接,即来源页
-    public String userAgent;  // 浏览器和操作系统类型
+//    public String referer; // 参考链接,即来源页
+//    public String userAgent;  // 浏览器和操作系统类型
 }

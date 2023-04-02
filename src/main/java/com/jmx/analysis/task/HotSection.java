@@ -41,9 +41,9 @@ public class HotSection {
         Properties sqlprops = Property.getMySQLProperties();
 
 
-        DataStream<String> logSource = env.addSource(new FlinkKafkaConsumer<String>("user_access_logs", new SimpleStringSchema(), props));
+//        DataStream<String> logSource = env.addSource(new FlinkKafkaConsumer<String>("user_access_logs", new SimpleStringSchema(), props));
 
-//        DataStream<String> logSource = env.readTextFile("/Users/sparkle6979l/Mavens/FlinkStu/flink-tes/lampp/logs/access_log");
+        DataStream<String> logSource = env.readTextFile("/Users/sparkle6979l/Mavens/FlinkStu/flink-tes/lampp/logs/access_log");
 
 
         DataStream<AccessLogRecord> AvaliableLog = AnalysisTools.getAvailableAccessLog(logSource);
@@ -62,7 +62,9 @@ public class HotSection {
 
                 .keyBy(data -> data.f0)
                 .window(TumblingEventTimeWindows.of(Time.days(3)))
-                .process(new CntSectionID());
+                .process(new CntSectionID())
+                        .keyBy(data -> data.f4)
+                                .process(new HotArticle.TopNProcessFunction(1));
 
 
 
@@ -102,6 +104,8 @@ public class HotSection {
             collector.collect(new Tuple5<>(integer, name, cnt, context.window().getStart(), context.window().getEnd()));
         }
     }
+
+
 
 
 }

@@ -50,7 +50,7 @@ public class Property {
     public static Properties getMySQLProperties() {
         Properties properties = new Properties();
         properties.setProperty("url", getValue("mysql.url"));
-        properties.setProperty("name", getValue("mysql.name"));
+        properties.setProperty("username", getValue("mysql.username"));
         properties.setProperty("password", getValue("mysql.password"));
         return properties;
     }
